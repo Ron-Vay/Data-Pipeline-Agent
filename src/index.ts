@@ -1,5 +1,6 @@
 import express from 'express';
 import { pipelineQueue } from './queue'
+import "./worker";
 
 const app = express();
 
