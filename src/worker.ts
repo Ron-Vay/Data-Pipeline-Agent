@@ -1,6 +1,6 @@
 import { connection } from "./queue";
 import { Worker } from 'bullmq'
-import { fetchSource, inspectSchema, transform } from "./tools";
+import {fetchSource, inspectSchema, store, transform} from "./tools";
 import { ColumnSchema } from "./types";
 import { parse } from 'csv-parse/sync';
 
@@ -19,7 +19,7 @@ new Worker('pipeline', async (job) => {
     let columns: ColumnSchema[];
     let rowCount: number;
     try {
-        ({ columns, rowCount } = inspectSchema(text)); // metadata, for ollama later
+        ({ columns, rowCount } = inspectSchema(text)); // TODO: metadata, for ollama later
     } catch (e) {
         await job.updateProgress({ step: 'inspect_schema', status: 'failed' });
         throw e;
@@ -34,11 +34,19 @@ new Worker('pipeline', async (job) => {
         const deduped = transform({ rows, operation: 'dedupe' });
 
         await job.updateProgress({ step: 'transform', status: 'dropping nulls..' });
-        const clean = transform({ rows: deduped, operation: 'drop_nulls' });
+        rows = transform({ rows: deduped, operation: 'drop_nulls' });
 
     } catch (e) {
         await job.updateProgress({ step: 'transform', status: 'failed' });
         throw e;
     }
 
+    await job.updateProgress({ step: 'store', status: 'running..' });
+    try{
+        await store(rows, job.id!);
+    }catch (e) {
+        await job.updateProgress({ step: 'store', status: 'failed' });
+        throw e;
+    }
+    await job.updateProgress({ step: 'store', status: 'Done' });
 }, { connection })

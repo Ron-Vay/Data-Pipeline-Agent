@@ -1,8 +1,7 @@
 import fetch from 'node-fetch'
 import { parse } from 'csv-parse/sync'
 import { ColumnSchema, Schema, TransformOperation } from "./types";
-
-
+import sql from "./db";
 
 export async function fetchSource(url:string): Promise<string> {
     const res = await fetch(url);
@@ -58,5 +57,10 @@ export function transform(input: TransformOperation): Record<string, string>[] {
         case 'cast_types':
         default:
             return input.rows
+    }
+}
+export async function store(rows: Record<string, string>[], jobId: string): Promise<void> {
+    for (const row of rows) {
+        await sql`INSERT INTO pipeline_results (job_id, data) VALUES (${jobId}, ${sql.json(row)})`;
     }
 }
