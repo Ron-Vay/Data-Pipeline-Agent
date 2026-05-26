@@ -1,6 +1,6 @@
 import fetch from 'node-fetch'
 import { parse } from 'csv-parse/sync'
-import {ColumnSchema, Schema, TransformOperation} from "./types";
+import { ColumnSchema, Schema, TransformOperation } from "./types";
 
 
 
@@ -12,7 +12,7 @@ export async function fetchSource(url:string): Promise<string> {
     return res.text()
 }
 
-export async function inspectSchema(raw:string): Promise<Schema> {
+export function inspectSchema(raw:string): Schema {
     const rows: Record<string, string>[] = parse(raw, { columns: true, skip_empty_lines: true });
     if(rows.length === 0) return { columns: [], rowCount: 0 }
     const columnNames = Object.keys(rows[0])
