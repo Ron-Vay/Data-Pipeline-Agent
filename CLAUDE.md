@@ -43,12 +43,23 @@ User submits a data source URL (CSV, JSON API, RSS feed). The agent fetches it, 
 - Results table once complete
 
 ## Build order
-1. Docker Compose with Redis + Postgres
-2. BullMQ job queue wired to Express
-3. Basic agent loop with hardcoded steps (no LLM yet)
-4. Tool implementations (`fetch_source`, `inspect_schema`, `transform`, `store`)
+1. ✅ Docker Compose with Redis + Postgres
+2. ✅ BullMQ job queue wired to Express
+3. ✅ Basic agent loop with hardcoded steps (no LLM yet)
+4. ✅ Tool implementations (`fetch_source`, `inspect_schema`, `transform`, `store`)
 5. Wire in Ollama for dynamic planning
 6. Frontend
+
+## Current state
+Steps 1–4 complete. The full pipeline runs end-to-end:
+- `POST /jobs` validates the URL, enqueues a job, returns the job ID
+- Worker runs `fetchSource → inspectSchema → transform (dedupe + drop_nulls) → store`
+- Per-step progress tracked via `job.updateProgress` and exposed on `GET /jobs/:id`
+- Cleaned rows stored to Postgres as JSONB in `pipeline_results` table
+- DB credentials via `.env` / `dotenv`
+- `GET /jobs/:id/results` endpoint not yet implemented
+
+Next: wire in Ollama to replace hardcoded transforms with dynamic planning based on the schema.
 
 ## Why it's résumé-worthy
 - Demonstrates agentic AI patterns (plan → tool call → observe → next step)
@@ -56,6 +67,3 @@ User submits a data source URL (CSV, JSON API, RSS feed). The agent fetches it, 
 - Tool use / function calling with a real AI model
 - End-to-end data flow from raw source to structured storage
 - Directly relevant to data engineering and backend AI roles
-
-## Session 1 scope
-Docker Compose scaffold with Redis + Postgres running, BullMQ connected, `POST /jobs` creates a job and `GET /jobs/:id` returns its status. No agent logic yet — just the queue infrastructure.
