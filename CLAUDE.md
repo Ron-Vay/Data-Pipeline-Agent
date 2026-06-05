@@ -29,7 +29,7 @@ User submits a data source URL (CSV, JSON API, RSS feed). The agent fetches it, 
 ### Agent tools
 - `fetch_source` — fetches raw data from URL
 - `inspect_schema` — infers column names, types, null counts
-- `transform` — applies a named transformation (`dedupe`, `drop_nulls`, `rename_columns`, `cast_types`)
+- `transform` — applies a named transformation (`dedupe`, `drop_nulls`, `rename_columns`)
 - `store` — writes cleaned rows to Postgres
 
 ### API endpoints

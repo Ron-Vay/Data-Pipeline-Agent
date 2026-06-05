@@ -1,19 +1,21 @@
 import fetch from 'node-fetch'
-import { parse } from 'csv-parse/sync'
 import { ColumnSchema, Schema, TransformOperation } from "./types";
 import pool from "./db";
 
-export async function fetchSource(url:string): Promise<string> {
-    const res = await fetch(url);
-    if (!res.ok) {
-        throw new Error(`Failed to fetch source: ${url}`);
+const MAX_SOURCE_BYTES = 10 * 1024 * 1024; // 10 MB
+
+export async function fetchSource(url: string): Promise<string> {
+    const res = await fetch(url, { timeout: 10_000 });
+    if (!res.ok) throw new Error(`Failed to fetch source: ${res.status} ${url}`);
+    const contentLength = res.headers.get('content-length');
+    if (contentLength && parseInt(contentLength) > MAX_SOURCE_BYTES) {
+        throw new Error(`Source exceeds size limit (${contentLength} bytes)`);
     }
-    return res.text()
+    return res.text();
 }
 
-export function inspectSchema(raw:string): Schema {
-    const rows: Record<string, string>[] = parse(raw, { columns: true, skip_empty_lines: true });
-    if(rows.length === 0) return { columns: [], rowCount: 0 }
+export function inspectSchema(rows: Record<string, string>[]): Schema {
+    if (rows.length === 0) return { columns: [], rowCount: 0 }
     const columnNames = Object.keys(rows[0])
     const columns: ColumnSchema[] = columnNames.map(name => {
         const values = rows.map(row => row[name])
@@ -54,16 +56,15 @@ export function transform(input: TransformOperation): Record<string, string>[] {
                 return newRow
             })
         }
-        case 'cast_types':
         default:
             return input.rows
     }
 }
 export async function store(rows: Record<string, string>[], jobId: string): Promise<void> {
-    for (const row of rows) {
-        await pool.query(
-            'INSERT INTO pipeline_results (job_id, data) VALUES ($1, $2)',
-            [jobId, JSON.stringify(row)]
-        );
-    }
+    if (rows.length === 0) return;
+    const placeholders = rows.map((_, i) => `($1, $${i + 2})`).join(', ');
+    await pool.query(
+        `INSERT INTO pipeline_results (job_id, data) VALUES ${placeholders}`,
+        [jobId, ...rows.map(r => JSON.stringify(r))]
+    );
 }

@@ -9,7 +9,7 @@ export type Schema = {
     rowCount: number
 }
 
-export type OperationType = 'dedupe' | 'drop_nulls' | 'rename_columns' | 'cast_types'
+export type OperationType = 'dedupe' | 'drop_nulls' | 'rename_columns'
 
 export type TransformOperation = {
     rows: Record<string, string>[],

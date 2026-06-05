@@ -17,8 +17,10 @@ new Worker('pipeline', async (job) => {
     await job.updateProgress({ step: 'inspect_schema', status: 'running..' });
 
     let schema: ReturnType<typeof inspectSchema>;
+    let rawRows: Record<string, string>[];
     try {
-        schema = inspectSchema(text);
+        rawRows = parse(text, { columns: true, skip_empty_lines: true });
+        schema = inspectSchema(rawRows);
     } catch (e) {
         await job.updateProgress({ step: 'inspect_schema', status: 'failed' });
         throw e;
@@ -27,7 +29,6 @@ new Worker('pipeline', async (job) => {
     await job.updateProgress({ step: 'transform', status: 'planning..' });
     let rows: Record<string, string>[]
     try{
-        const rawRows: Record<string, string>[] = parse(text, { columns: true, skip_empty_lines: true });
         rows = await runAgent(schema, rawRows, async (status) => {
             await job.updateProgress({ step: 'transform', status });
         });
