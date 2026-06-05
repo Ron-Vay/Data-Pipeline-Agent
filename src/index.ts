@@ -1,8 +1,8 @@
+import 'dotenv/config';
 import express from 'express';
 import { pipelineQueue } from './queue'
 import "./worker";
-import {initDb} from "./db";
-import sql from "./db";
+import {initDb, query} from "./db";
 
 initDb().catch(err => { console.error('DB init failed:', err); process.exit(1); });
 const app = express();
@@ -25,9 +25,9 @@ app.get('/jobs/:id', async (req, res) => {
 });
 
 app.get('/jobs/:id/results', async (req, res) => {
-    const rows = await sql`SELECT data FROM pipeline_results WHERE job_id = ${req.params.id}`;
-    if (rows.length === 0) return res.status(404).json({ error: 'No results found' });
-    res.json({ results: rows.map(r => r.data) });
+    const result = await query('SELECT data FROM pipeline_results WHERE job_id = $1', [req.params.id]);
+    if (result.rows.length === 0) return res.status(404).json({ error: 'No results found' });
+    res.json({ results: result.rows.map(r => r.data) });
 });
 
 app.listen(3000);

@@ -1,21 +1,26 @@
-import postgres from 'postgres';
+import { Pool } from 'pg';
 
-const sql = postgres({
-    host: 'localhost',
+const pool = new Pool({
+    host: '127.0.0.1',
     port: 5434,
-    database: process.env.DB_NAME,
-    username: process.env.DB_USERNAME,
-    password: process.env.DB_PASSWORD,
+    database: process.env.POSTGRES_DB,
+    user: process.env.POSTGRES_USER,
+    password: process.env.POSTGRES_PASSWORD,
+    ssl: false,
 });
 
 export async function initDb() {
-    await sql`
-          CREATE TABLE IF NOT EXISTS pipeline_results (
-              id SERIAL PRIMARY KEY,
-              job_id TEXT NOT NULL,
-              data JSONB NOT NULL
-          )
-      `;
+    await pool.query(`
+        CREATE TABLE IF NOT EXISTS pipeline_results (
+            id SERIAL PRIMARY KEY,
+            job_id TEXT NOT NULL,
+            data JSONB NOT NULL
+        )
+    `);
 }
 
-export default sql;
+export async function query(text: string, values?: unknown[]) {
+    return pool.query(text, values);
+}
+
+export default pool;
