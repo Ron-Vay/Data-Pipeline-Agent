@@ -1,8 +1,8 @@
 import { connection } from "./queue";
 import { Worker } from 'bullmq'
-import {fetchSource, inspectSchema, store, transform} from "./tools";
-import { ColumnSchema } from "./types";
+import { fetchSource, inspectSchema, store } from "./tools";
 import { parse } from 'csv-parse/sync';
+import { runAgent } from "./agent";
 
 new Worker('pipeline', async (job) => {
 
@@ -16,26 +16,21 @@ new Worker('pipeline', async (job) => {
     }
     await job.updateProgress({ step: 'inspect_schema', status: 'running..' });
 
-    let columns: ColumnSchema[];
-    let rowCount: number;
+    let schema: ReturnType<typeof inspectSchema>;
     try {
-        ({ columns, rowCount } = inspectSchema(text)); // TODO: metadata, for ollama later
+        schema = inspectSchema(text);
     } catch (e) {
         await job.updateProgress({ step: 'inspect_schema', status: 'failed' });
         throw e;
     }
 
-    await job.updateProgress({ step: 'transform', status: 'running..' });
+    await job.updateProgress({ step: 'transform', status: 'planning..' });
     let rows: Record<string, string>[]
     try{
-        rows = parse(text, { columns: true, skip_empty_lines: true }); //hardcoded for now, ollama will replace later
-
-        await job.updateProgress({ step: 'transform', status: 'deduping..' });
-        const deduped = transform({ rows, operation: 'dedupe' });
-
-        await job.updateProgress({ step: 'transform', status: 'dropping nulls..' });
-        rows = transform({ rows: deduped, operation: 'drop_nulls' });
-
+        const rawRows: Record<string, string>[] = parse(text, { columns: true, skip_empty_lines: true });
+        rows = await runAgent(schema, rawRows, async (status) => {
+            await job.updateProgress({ step: 'transform', status });
+        });
     } catch (e) {
         await job.updateProgress({ step: 'transform', status: 'failed' });
         throw e;

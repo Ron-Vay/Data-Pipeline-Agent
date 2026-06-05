@@ -8,7 +8,7 @@ User submits a data source URL (CSV, JSON API, RSS feed). The agent fetches it, 
 | Layer | Choice | Reason |
 |---|---|---|
 | Backend | TypeScript + Express | Consistent with prior projects |
-| Agent / LLM | Ollama (llama3.1 or similar) | Free, local, supports tool use |
+| Agent / LLM | Ollama (llama3.2) | Free, local, supports tool use |
 | Job queue | BullMQ + Redis | Production-grade async job handling |
 | DB | PostgreSQL | Consistent with prior projects |
 | Frontend | React + Vite + shadcn/ui | Consistent with prior projects |
@@ -47,19 +47,29 @@ User submits a data source URL (CSV, JSON API, RSS feed). The agent fetches it, 
 2. ✅ BullMQ job queue wired to Express
 3. ✅ Basic agent loop with hardcoded steps (no LLM yet)
 4. ✅ Tool implementations (`fetch_source`, `inspect_schema`, `transform`, `store`)
-5. Wire in Ollama for dynamic planning
+5. ✅ Ollama integration — dynamic transform planning via tool-calling loop
 6. Frontend
 
 ## Current state
-Steps 1–4 complete. The full pipeline runs end-to-end:
+Steps 1–5 complete. The full pipeline runs end-to-end with live AI planning:
 - `POST /jobs` validates the URL, enqueues a job, returns the job ID
-- Worker runs `fetchSource → inspectSchema → transform (dedupe + drop_nulls) → store`
+- Worker runs `fetchSource → inspectSchema → runAgent → store`
+- `runAgent` sends the schema to Ollama (llama3.2) with tool definitions; the model calls transforms
+  (`dedupe`, `drop_nulls`, `rename_columns`) as tool calls; results are fed back each turn; loop
+  continues until the model calls `finish()` or makes no further tool calls (max 10 turns)
 - Per-step progress tracked via `job.updateProgress` and exposed on `GET /jobs/:id`
 - Cleaned rows stored to Postgres as JSONB in `pipeline_results` table
-- DB credentials via `.env` / `dotenv`
-- `GET /jobs/:id/results` endpoint not yet implemented
+- `GET /jobs/:id/results` returns cleaned rows
+- `GET /jobs/:id` includes `failedReason` for debugging failed jobs
+- DB credentials (`pipeline/pipeline/pipeline`) via `.env` / `dotenv`
 
-Next: wire in Ollama to replace hardcoded transforms with dynamic planning based on the schema.
+## Infrastructure notes
+- Postgres is `postgres` image listening on container port 5432, mapped to host port 5434
+- If the container was created with the wrong port mapping, run `docker compose down && docker compose up -d` to recreate it
+- Uses `pg` (node-postgres) not `postgres` (postgres.js) — postgres.js hangs on Node.js v22 + Docker Desktop Windows
+- `dotenv/config` must be the first import in `index.ts` so env vars load before the pg pool is created
+
+Next: Frontend
 
 ## Why it's résumé-worthy
 - Demonstrates agentic AI patterns (plan → tool call → observe → next step)
