@@ -48,6 +48,12 @@ ollama serve
 npm run dev
 ```
 
+### Run tests
+
+```bash
+npm test
+```
+
 ## API
 
 ### Submit a job
@@ -90,13 +96,16 @@ The LLM can call any combination of these in any order:
 
 ```
 src/
-  index.ts      — Express server, API routes
+  index.ts      — Entry point: starts server and DB init
+  app.ts        — Express app and route definitions (importable for tests)
   worker.ts     — BullMQ worker, pipeline orchestration
   agent.ts      — Ollama agentic loop (schema in → cleaned rows out)
   tools.ts      — fetch_source, inspect_schema, transform, store
+  utils.ts      — isAllowedUrl and other pure utilities
   db.ts         — pg connection pool, initDb
   queue.ts      — BullMQ queue + Redis connection
   types.ts      — Shared types
+  __tests__/    — Jest test suites
 ```
 
 ## Environment variables

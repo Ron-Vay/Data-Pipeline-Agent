@@ -48,10 +48,14 @@ User submits a data source URL (CSV, JSON API, RSS feed). The agent fetches it, 
 3. ✅ Basic agent loop with hardcoded steps (no LLM yet)
 4. ✅ Tool implementations (`fetch_source`, `inspect_schema`, `transform`, `store`)
 5. ✅ Ollama integration — dynamic transform planning via tool-calling loop
-6. Frontend
+6. ✅ Security hardening + code quality (URL validation, batch insert, SSRF protection)
+7. ✅ Tests (Jest + ts-jest + supertest, 40 tests across utils/tools/api)
+8. ✅ Worker error event handler — prevents silent process crash on BullMQ connection errors
+9. ✅ GitHub Actions CI — runs `npm test` on every push
+10. Frontend (React + Vite + shadcn/ui)
 
 ## Current state
-Steps 1–5 complete. The full pipeline runs end-to-end with live AI planning:
+Steps 1–9 complete. The full pipeline runs end-to-end with live AI planning:
 - `POST /jobs` validates the URL, enqueues a job, returns the job ID
 - Worker runs `fetchSource → inspectSchema → runAgent → store`
 - `runAgent` sends the schema to Ollama (llama3.2) with tool definitions; the model calls transforms
@@ -68,6 +72,8 @@ Steps 1–5 complete. The full pipeline runs end-to-end with live AI planning:
 - If the container was created with the wrong port mapping, run `docker compose down && docker compose up -d` to recreate it
 - Uses `pg` (node-postgres) not `postgres` (postgres.js) — postgres.js hangs on Node.js v22 + Docker Desktop Windows
 - `dotenv/config` must be the first import in `index.ts` so env vars load before the pg pool is created
+- `app.ts` holds the Express setup with no side effects so tests can import it safely; `index.ts` is the entry point only (calls `listen` + `initDb`)
+- Run tests with `npm test` (Jest + ts-jest, no external services needed — queue and DB are mocked)
 
 Next: Frontend
 
