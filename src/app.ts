@@ -19,7 +19,7 @@ app.post('/jobs', async (req, res) => {
 app.get('/jobs/:id', async (req, res) => {
     const job = await pipelineQueue.getJob(req.params.id);
     if (!job) return res.status(404).json({ error: 'Job not found' });
-    res.json({ id: job.id, data: job.data, status: await job.getState(), progress: job.progress });
+    res.json({ id: job.id, data: job.data, status: await job.getState(), progress: job.progress, failedReason: job.failedReason });
 });
 
 app.get('/jobs/:id/results', async (req, res) => {

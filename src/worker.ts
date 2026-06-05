@@ -1,11 +1,21 @@
 import { connection } from "./queue";
-import { Worker } from 'bullmq'
+import { Worker, Job } from 'bullmq'
 import { fetchSource, inspectSchema, store } from "./tools";
 import { parse } from 'csv-parse/sync';
 import { runAgent } from "./agent";
 
-new Worker('pipeline', async (job) => {
+const JOB_TIMEOUT_MS = 2 * 60 * 1000; // 2 minutes
 
+function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
+    return Promise.race([
+        promise,
+        new Promise<never>((_, reject) =>
+            setTimeout(() => reject(new Error(`Job timed out after ${ms / 1000}s`)), ms)
+        ),
+    ]);
+}
+
+async function runPipeline(job: Job) {
     await job.updateProgress({ step: 'fetch_source', status: 'running..' });
     let text: string
     try {
@@ -28,7 +38,7 @@ new Worker('pipeline', async (job) => {
 
     await job.updateProgress({ step: 'transform', status: 'planning..' });
     let rows: Record<string, string>[]
-    try{
+    try {
         rows = await runAgent(schema, rawRows, async (status) => {
             await job.updateProgress({ step: 'transform', status });
         });
@@ -38,11 +48,14 @@ new Worker('pipeline', async (job) => {
     }
 
     await job.updateProgress({ step: 'store', status: 'running..' });
-    try{
+    try {
         await store(rows, job.id!);
-    }catch (e) {
+    } catch (e) {
         await job.updateProgress({ step: 'store', status: 'failed' });
         throw e;
     }
     await job.updateProgress({ step: 'store', status: 'Done' });
-}, { connection })
+}
+
+new Worker('pipeline', (job) => withTimeout(runPipeline(job), JOB_TIMEOUT_MS), { connection })
+    .on('error', (err) => console.error('Worker error:', err));

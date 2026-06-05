@@ -111,23 +111,27 @@ export async function runAgent(
         break
       }
 
-      await onStep?.(`transform: ${name}`)
-      const before = currentRows.length
+      let toolResult: Record<string, unknown>
+      try {
+        await onStep?.(`transform: ${name}`)
+        const before = currentRows.length
 
-      if (name === 'dedupe') {
-        currentRows = transform({ rows: currentRows, operation: 'dedupe' })
-      } else if (name === 'drop_nulls') {
-        currentRows = transform({ rows: currentRows, operation: 'drop_nulls' })
-      } else if (name === 'rename_columns') {
-        const mapping = (args as { mapping: Record<string, string> }).mapping
-        currentRows = transform({ rows: currentRows, operation: 'rename_columns', options: mapping })
+        if (name === 'dedupe') {
+          currentRows = transform({ rows: currentRows, operation: 'dedupe' })
+        } else if (name === 'drop_nulls') {
+          currentRows = transform({ rows: currentRows, operation: 'drop_nulls' })
+        } else if (name === 'rename_columns') {
+          const mapping = (args as { mapping?: Record<string, string> }).mapping
+          currentRows = transform({ rows: currentRows, operation: 'rename_columns', options: mapping })
+        }
+
+        const removed = before - currentRows.length
+        toolResult = { success: true, rowsRemoved: removed, rowsRemaining: currentRows.length }
+      } catch (e) {
+        toolResult = { success: false, error: (e as Error).message }
       }
 
-      const removed = before - currentRows.length
-      messages.push({
-        role: 'tool',
-        content: JSON.stringify({ success: true, rowsRemoved: removed, rowsRemaining: currentRows.length })
-      })
+      messages.push({ role: 'tool', content: JSON.stringify(toolResult) })
     }
 
     if (finished) break

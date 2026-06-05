@@ -52,10 +52,10 @@ User submits a data source URL (CSV, JSON API, RSS feed). The agent fetches it, 
 7. ✅ Tests (Jest + ts-jest + supertest, 40 tests across utils/tools/api)
 8. ✅ Worker error event handler — prevents silent process crash on BullMQ connection errors
 9. ✅ GitHub Actions CI — runs `npm test` on every push
-10. Frontend (React + Vite + shadcn/ui)
+10. ✅ Frontend (React + Vite + Tailwind CSS)
 
 ## Current state
-Steps 1–9 complete. The full pipeline runs end-to-end with live AI planning:
+Steps 1–10 complete. The full pipeline runs end-to-end with live AI planning:
 - `POST /jobs` validates the URL, enqueues a job, returns the job ID
 - Worker runs `fetchSource → inspectSchema → runAgent → store`
 - `runAgent` sends the schema to Ollama (llama3.2) with tool definitions; the model calls transforms
@@ -75,7 +75,11 @@ Steps 1–9 complete. The full pipeline runs end-to-end with live AI planning:
 - `app.ts` holds the Express setup with no side effects so tests can import it safely; `index.ts` is the entry point only (calls `listen` + `initDb`)
 - Run tests with `npm test` (Jest + ts-jest, no external services needed — queue and DB are mocked)
 
-Next: Frontend
+## Frontend (client/)
+- Vite + React + TypeScript + Tailwind CSS in `client/`
+- Dev server proxies `/jobs` to `http://localhost:3000` — no CORS config needed during development
+- `npm run dev` inside `client/` to start the frontend
+- Three views: URL submission form → live progress (polling every 2 s) → results table
 
 ## Why it's résumé-worthy
 - Demonstrates agentic AI patterns (plan → tool call → observe → next step)

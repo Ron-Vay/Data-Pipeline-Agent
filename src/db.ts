@@ -7,6 +7,9 @@ const pool = new Pool({
     user: process.env.POSTGRES_USER,
     password: process.env.POSTGRES_PASSWORD,
     ssl: false,
+    connectionTimeoutMillis: 5000,
+    query_timeout: 10000,
+    idleTimeoutMillis: 30000,
 });
 
 export async function initDb() {
