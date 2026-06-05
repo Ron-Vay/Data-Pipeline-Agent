@@ -13,6 +13,7 @@ interface JobStatus {
   id: string;
   status: 'waiting' | 'active' | 'completed' | 'failed';
   progress: Progress | null;
+  failedReason?: string;
 }
 
 const STEPS: { key: Step; label: string }[] = [
@@ -28,12 +29,13 @@ function stepIndex(step: Step) {
   return STEP_ORDER.indexOf(step);
 }
 
-function useDots() {
+function useDots(active: boolean) {
   const [frame, setFrame] = useState(0);
   useEffect(() => {
+    if (!active) return;
     const id = setInterval(() => setFrame(f => (f + 1) % 3), 500);
     return () => clearInterval(id);
-  }, []);
+  }, [active]);
   return ['.', '..', '...'][frame];
 }
 
@@ -51,7 +53,7 @@ function StepRow({ step, currentStep, currentStatus, jobStatus }: {
   const current = !done && !failed && thisIdx === currentIdx;
   const waiting = !done && !current && !failed;
 
-  const dots = useDots();
+  const dots = useDots(current);
 
   return (
     <div className={cn(
@@ -146,7 +148,8 @@ function ProgressView({ jobId, onReset }: { jobId: string; onReset: () => void }
 
       {job?.status === 'failed' && (
         <div className="rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-700">
-          Job failed. Check server logs for details.
+          <p className="font-medium">Job failed</p>
+          {job.failedReason && <p className="mt-1 opacity-80">{job.failedReason}</p>}
         </div>
       )}
 

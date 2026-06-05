@@ -11,7 +11,7 @@ User submits a data source URL (CSV, JSON API, RSS feed). The agent fetches it, 
 | Agent / LLM | Ollama (llama3.2) | Free, local, supports tool use |
 | Job queue | BullMQ + Redis | Production-grade async job handling |
 | DB | PostgreSQL | Consistent with prior projects |
-| Frontend | React + Vite + shadcn/ui | Consistent with prior projects |
+| Frontend | React + Vite + Tailwind CSS | Consistent with prior projects |
 | Containerisation | Docker Compose | Redis + Postgres as sidecars |
 
 ## Architecture
@@ -49,7 +49,7 @@ User submits a data source URL (CSV, JSON API, RSS feed). The agent fetches it, 
 4. ✅ Tool implementations (`fetch_source`, `inspect_schema`, `transform`, `store`)
 5. ✅ Ollama integration — dynamic transform planning via tool-calling loop
 6. ✅ Security hardening + code quality (URL validation, batch insert, SSRF protection)
-7. ✅ Tests (Jest + ts-jest + supertest, 40 tests across utils/tools/api)
+7. ✅ Tests (Jest + ts-jest + supertest, 53 tests across utils/tools/api/agent/worker)
 8. ✅ Worker error event handler — prevents silent process crash on BullMQ connection errors
 9. ✅ GitHub Actions CI — runs `npm test` on every push
 10. ✅ Frontend (React + Vite + Tailwind CSS)
@@ -57,14 +57,16 @@ User submits a data source URL (CSV, JSON API, RSS feed). The agent fetches it, 
 ## Current state
 Steps 1–10 complete. The full pipeline runs end-to-end with live AI planning:
 - `POST /jobs` validates the URL, enqueues a job, returns the job ID
-- Worker runs `fetchSource → inspectSchema → runAgent → store`
+- Worker runs `fetchSource → inspectSchema → runAgent → store`, wrapped in a 2-minute TTL (`withTimeout`)
 - `runAgent` sends the schema to Ollama (llama3.2) with tool definitions; the model calls transforms
   (`dedupe`, `drop_nulls`, `rename_columns`) as tool calls; results are fed back each turn; loop
   continues until the model calls `finish()` or makes no further tool calls (max 10 turns)
+- Bad LLM tool calls (e.g. `rename_columns` without `mapping`) return `{ success: false, error }` to the model instead of crashing the job
 - Per-step progress tracked via `job.updateProgress` and exposed on `GET /jobs/:id`
 - Cleaned rows stored to Postgres as JSONB in `pipeline_results` table
 - `GET /jobs/:id/results` returns cleaned rows
 - `GET /jobs/:id` includes `failedReason` for debugging failed jobs
+- DB pool has `query_timeout: 10s` and `connectionTimeoutMillis: 5s` so hung queries fail fast
 - DB credentials (`pipeline/pipeline/pipeline`) via `.env` / `dotenv`
 
 ## Infrastructure notes

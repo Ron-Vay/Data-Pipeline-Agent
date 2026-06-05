@@ -18,6 +18,7 @@ An agentic data pipeline that accepts a CSV URL, uses a local LLM to plan and ex
 | Agent / LLM | Ollama (llama3.2) — local, free, tool-calling |
 | Job queue | BullMQ + Redis |
 | Database | PostgreSQL |
+| Frontend | React + Vite + Tailwind CSS |
 | Containerisation | Docker Compose |
 
 ## Prerequisites
@@ -46,6 +47,9 @@ ollama serve
 
 # 5. Start the API server
 npm run dev
+
+# 6. Start the frontend (separate terminal)
+cd client && npm install && npm run dev
 ```
 
 ### Run tests
@@ -69,7 +73,7 @@ curl -X POST http://localhost:3000/jobs \
 
 ```bash
 curl http://localhost:3000/jobs/1
-# → {"id":"1","status":"active","progress":{"step":"transform","status":"transform: dedupe"},...}
+# → {"id":"1","status":"active","progress":{"step":"transform","status":"transform: dedupe"},"failedReason":null,...}
 ```
 
 Progress steps: `fetch_source` → `inspect_schema` → `transform` (one update per tool call) → `store`
@@ -98,7 +102,7 @@ The LLM can call any combination of these in any order:
 src/
   index.ts      — Entry point: starts server and DB init
   app.ts        — Express app and route definitions (importable for tests)
-  worker.ts     — BullMQ worker, pipeline orchestration
+  worker.ts     — BullMQ worker, pipeline orchestration, 2-min job TTL
   agent.ts      — Ollama agentic loop (schema in → cleaned rows out)
   tools.ts      — fetch_source, inspect_schema, transform, store
   utils.ts      — isAllowedUrl and other pure utilities
@@ -106,6 +110,8 @@ src/
   queue.ts      — BullMQ queue + Redis connection
   types.ts      — Shared types
   __tests__/    — Jest test suites
+client/
+  src/App.tsx   — React frontend: submit form, live progress, results table
 ```
 
 ## Environment variables

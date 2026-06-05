@@ -71,10 +71,27 @@ describe('GET /jobs/:id', () => {
             data: { url: 'https://example.com/data.csv' },
             getState: async () => 'completed',
             progress: { step: 'store', status: 'Done' },
+            failedReason: undefined,
         });
         const res = await request(app).get('/jobs/1');
         expect(res.status).toBe(200);
         expect(res.body).toMatchObject({ id: '1', status: 'completed' });
+    });
+
+    it('includes failedReason for failed jobs', async () => {
+        mockGetJob.mockResolvedValue({
+            id: '2',
+            data: { url: 'https://example.com/data.csv' },
+            getState: async () => 'failed',
+            progress: { step: 'transform', status: 'failed' },
+            failedReason: 'No options provided for rename_columns',
+        });
+        const res = await request(app).get('/jobs/2');
+        expect(res.status).toBe(200);
+        expect(res.body).toMatchObject({
+            status: 'failed',
+            failedReason: 'No options provided for rename_columns',
+        });
     });
 });
 
